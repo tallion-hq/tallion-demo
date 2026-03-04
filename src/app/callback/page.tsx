@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BASE_PATH } from "@/lib/config";
 
 export default function CallbackPage() {
   const [status, setStatus] = useState<"loading" | "success" | "error">(
@@ -20,14 +21,14 @@ export default function CallbackPage() {
     }
 
     // Verify state matches what we stored
-    const storedState = sessionStorage.getItem("tallion_state");
+    const storedState = localStorage.getItem("tallion_state");
     if (state !== storedState) {
       setStatus("error");
       setError("State mismatch");
       return;
     }
 
-    const codeVerifier = sessionStorage.getItem("tallion_code_verifier");
+    const codeVerifier = localStorage.getItem("tallion_code_verifier");
     if (!codeVerifier) {
       setStatus("error");
       setError("Missing code verifier");
@@ -35,7 +36,7 @@ export default function CallbackPage() {
     }
 
     // Exchange the code for tokens
-    fetch("/api/auth/exchange", {
+    fetch(`${BASE_PATH}/api/auth/exchange`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, codeVerifier }),
@@ -55,17 +56,17 @@ export default function CallbackPage() {
           customerId: data.customerId,
           connected: true,
         };
-        sessionStorage.setItem("tallion_session", JSON.stringify(session));
+        localStorage.setItem("tallion_session", JSON.stringify(session));
 
         // Clean up
-        sessionStorage.removeItem("tallion_state");
-        sessionStorage.removeItem("tallion_code_verifier");
+        localStorage.removeItem("tallion_state");
+        localStorage.removeItem("tallion_code_verifier");
 
         setStatus("success");
 
         // If opened as popup, notify parent and close
         if (window.opener) {
-          window.opener.sessionStorage.setItem(
+          window.opener.localStorage.setItem(
             "tallion_session",
             JSON.stringify(session),
           );

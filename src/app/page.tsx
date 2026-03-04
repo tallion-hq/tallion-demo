@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { BASE_PATH } from "@/lib/config";
 
 interface Session {
   accessToken: string;
@@ -122,7 +123,7 @@ export default function Home() {
   async function fetchBalance() {
     if (!session) return;
     try {
-      const res = await fetch("/api/balance", {
+      const res = await fetch(`${BASE_PATH}/api/balance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accessToken: session.accessToken }),
@@ -146,7 +147,7 @@ export default function Home() {
     pendingItemRef.current = item;
 
     try {
-      const res = await fetch("/api/auth", {
+      const res = await fetch(`${BASE_PATH}/api/auth`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -201,7 +202,7 @@ export default function Home() {
     setError("");
 
     try {
-      const res = await fetch("/api/purchase", {
+      const res = await fetch(`${BASE_PATH}/api/purchase`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
