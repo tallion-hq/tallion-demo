@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "QuickBite — AI Food Ordering",
-  description: "Order food with AI, powered by Tallion spend control",
+  title: "Tallion — AI Shopping Assistant",
+  description: "Buy anything, anywhere — AI agent commerce powered by Tallion",
 };
 
 export default function RootLayout({
