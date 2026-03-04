@@ -88,7 +88,7 @@ export default function Home() {
 
   // Restore session on load
   useEffect(() => {
-    const stored = sessionStorage.getItem("tallion_session");
+    const stored = localStorage.getItem("tallion_session");
     if (stored) {
       try {
         setSession(JSON.parse(stored));
@@ -97,7 +97,7 @@ export default function Home() {
 
     // Listen for OAuth popup completing
     const handler = () => {
-      const stored = sessionStorage.getItem("tallion_session");
+      const stored = localStorage.getItem("tallion_session");
       if (stored) {
         const s = JSON.parse(stored);
         setSession(s);
@@ -149,6 +149,13 @@ export default function Home() {
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          item: {
+            name: item.name,
+            price: item.price,
+            restaurant: item.restaurant,
+          },
+        }),
       });
       const data = await res.json();
 
@@ -160,8 +167,8 @@ export default function Home() {
       }
 
       if (data.url) {
-        sessionStorage.setItem("tallion_state", data.state);
-        sessionStorage.setItem("tallion_code_verifier", data.codeVerifier);
+        localStorage.setItem("tallion_state", data.state);
+        localStorage.setItem("tallion_code_verifier", data.codeVerifier);
         popupRef.current = window.open(
           data.url,
           "tallion_auth",
@@ -172,7 +179,7 @@ export default function Home() {
         const checker = setInterval(() => {
           if (popupRef.current?.closed) {
             clearInterval(checker);
-            if (!sessionStorage.getItem("tallion_session")) {
+            if (!localStorage.getItem("tallion_session")) {
               setOrdering(null);
               pendingItemRef.current = null;
             }

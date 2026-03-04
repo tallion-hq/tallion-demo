@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { TallionError } from "@tallion/sdk";
 import { tally, APP_URL } from "@/lib/tallion";
 
 // POST /api/auth — Start the Tallion OAuth flow
-export async function POST() {
+export async function POST(request: NextRequest) {
   if (!tally) {
     return NextResponse.json(
       {
@@ -15,8 +15,12 @@ export async function POST() {
   }
 
   try {
-    // No phone needed — the Tallion hosted authorization page handles
-    // customer verification, funding, and limit setup.
+    // Read item from request body (optional — for purchase context)
+    const body = await request.json().catch(() => ({}));
+    const item = body.item as
+      | { name: string; price: number; restaurant: string }
+      | undefined;
+
     const { url, state, codeVerifier } = await tally.authorize.createUrl({
       redirectUrl: `${APP_URL}/callback`,
       scopes: ["purchase", "balance:read"],
@@ -25,6 +29,13 @@ export async function POST() {
         maxPerDay: 50000, // $500.00
         requireApprovalAbove: 5000, // $50.00
       },
+      purchaseContext: item
+        ? {
+            amount: item.price,
+            description: item.name,
+            merchant: item.restaurant,
+          }
+        : undefined,
     });
 
     return NextResponse.json({ url, state, codeVerifier });
