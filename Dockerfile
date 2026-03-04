@@ -3,7 +3,7 @@ FROM node:20-alpine AS base
 # Install dependencies
 FROM base AS deps
 WORKDIR /app
-COPY package.json ./
+COPY package.json tallion-sdk.tgz ./
 RUN npm install --production=false
 
 # Build
