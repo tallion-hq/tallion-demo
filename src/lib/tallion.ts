@@ -1,9 +1,9 @@
-import { Tally } from "@tallion/sdk";
+import { Tallion } from "@tallion/sdk";
 
-let tally: Tally | null = null;
+let tally: Tallion | null = null;
 
 try {
-  tally = new Tally({
+  tally = new Tallion({
     apiKey: process.env.TALLION_API_KEY || "",
     baseUrl: process.env.TALLION_BASE_URL,
   });

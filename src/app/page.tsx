@@ -44,6 +44,7 @@ interface ChatMessage {
   widget?:
     | { type: "products"; products: Product[] }
     | { type: "intent"; intent: IntentData }
+    | { type: "checkout"; checkout: CheckoutData }
     | { type: "code" };
   typing?: boolean;
 }
@@ -55,117 +56,71 @@ interface Product {
   image: string;
   url: string;
   description: string;
+  trustScore?: number;
+  rating?: number;
+  reviewCount?: number;
+  deliveryEstimate?: string;
+  inStock?: boolean;
 }
 
-// ── Mock Product Catalog ──
+interface CheckoutData {
+  id: string;
+  status: string;
+  progressPct: number;
+  productUrl: string;
+  productName?: string;
+  orderNumber?: string;
+  orderTotalCents?: number;
+  estimatedDelivery?: string;
+  trackingNumber?: string;
+  errorMessage?: string;
+}
 
-const PRODUCT_CATALOG: Record<string, Product[]> = {
-  earbuds: [
-    {
-      name: "Sony WF-1000XM5",
-      price: 27999,
-      store: "Amazon",
-      image: "https://m.media-amazon.com/images/I/61lBG1FjoIL._AC_SL1500_.jpg",
-      url: "https://amazon.com/dp/B0C8Y8L2Z3",
-      description: "Industry-leading noise canceling, exceptional sound",
-    },
-    {
-      name: "AirPods Pro 2",
-      price: 24999,
-      store: "Apple Store",
-      image: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/MQD83",
-      url: "https://apple.com/shop/product/MQD83",
-      description: "Adaptive Audio, USB-C, 6h battery life",
-    },
-    {
-      name: "Samsung Galaxy Buds3 Pro",
-      price: 24999,
-      store: "Best Buy",
-      image: "https://pisces.bbystatic.com/image2/BestBuy_US/images/products/6583/6583520_sd.jpg",
-      url: "https://bestbuy.com/site/6583520",
-      description: "360 Audio, Blade Lights, 7h battery",
-    },
-  ],
-  laptop: [
-    {
-      name: 'MacBook Air 15" M3',
-      price: 129900,
-      store: "Apple Store",
-      image: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/mba15-m3",
-      url: "https://apple.com/shop/buy-mac/macbook-air",
-      description: '15.3" Liquid Retina, M3 chip, 18h battery',
-    },
-    {
-      name: "ThinkPad X1 Carbon Gen 12",
-      price: 147900,
-      store: "Lenovo",
-      image: "https://p4-ofp.static.pub/fes/cms/2024/02/05/x1carbon-gen12.png",
-      url: "https://lenovo.com/us/en/p/laptops/thinkpad/thinkpadx1/thinkpad-x1-carbon-gen-12",
-      description: "Intel Ultra 7, 14\" 2.8K OLED, 1kg",
-    },
-  ],
-  headphones: [
-    {
-      name: "Sony WH-1000XM5",
-      price: 34999,
-      store: "Amazon",
-      image: "https://m.media-amazon.com/images/I/51aXvjzcukL._AC_SL1500_.jpg",
-      url: "https://amazon.com/dp/B09XS7JWHH",
-      description: "Best-in-class ANC, 30h battery, multipoint",
-    },
-    {
-      name: "AirPods Max",
-      price: 54999,
-      store: "Apple Store",
-      image: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/airpods-max",
-      url: "https://apple.com/shop/buy-airpods/airpods-max",
-      description: "Computational audio, Digital Crown, USB-C",
-    },
-  ],
-  keyboard: [
-    {
-      name: "Keychron Q1 Pro",
-      price: 19900,
-      store: "Keychron",
-      image: "https://cdn.shopify.com/s/files/1/0059/0630/1017/products/q1-pro.jpg",
-      url: "https://keychron.com/products/keychron-q1-pro",
-      description: "75% layout, wireless, hot-swappable, aluminum",
-    },
-    {
-      name: "HHKB Professional Hybrid",
-      price: 26000,
-      store: "Amazon",
-      image: "https://m.media-amazon.com/images/I/61LMr5FHKOL._AC_SL1500_.jpg",
-      url: "https://amazon.com/dp/B082TQK2SB",
-      description: "Topre switches, compact, Bluetooth + USB-C",
-    },
-  ],
-  coffee: [
-    {
-      name: "Fellow Opus Grinder",
-      price: 19500,
-      store: "Fellow",
-      image: "https://cdn.shopify.com/s/files/1/0057/0643/1923/products/Fellow-Opus.jpg",
-      url: "https://fellowproducts.com/products/opus-conical-burr-grinder",
-      description: "Conical burr, 41 settings, anti-static",
-    },
-    {
-      name: "Breville Barista Express",
-      price: 74995,
-      store: "Amazon",
-      image: "https://m.media-amazon.com/images/I/71pA2IEjsaL._AC_SL1500_.jpg",
-      url: "https://amazon.com/dp/B00CH9QWOU",
-      description: "Built-in grinder, PID temp control, steam wand",
-    },
-  ],
-};
+interface AgentStep {
+  id: string;
+  stepNumber: number;
+  stepName: string;
+  status: string;
+  screenshotUrl?: string;
+  pageUrl?: string;
+  durationMs?: number;
+  errorMessage?: string;
+  createdAt: string;
+}
+
+interface AgentViewData {
+  status: string;
+  progressPct: number;
+  screenshotUrl?: string;
+  productName?: string;
+  steps: AgentStep[];
+}
+
+// ── Product Search ──
+
+async function searchProducts(query: string): Promise<Product[]> {
+  try {
+    const res = await fetch(`${BASE_PATH}/api/products`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    });
+    if (!res.ok) throw new Error("Search failed");
+    const data = await res.json();
+    return data.products || [];
+  } catch (error) {
+    console.error("Product search error:", error);
+    // Fallback to empty
+    return [];
+  }
+}
 
 const SUGGESTIONS = [
   "Find me wireless earbuds under $300",
   "I need a new laptop for coding",
-  "Best noise-canceling headphones",
-  "Buy me a mechanical keyboard",
-  "I want an espresso setup",
+  "Search for noise-canceling headphones",
+  "Best mechanical keyboards",
+  "Find an espresso machine",
 ];
 
 // ── Helpers ──
@@ -189,35 +144,6 @@ function formatPan(pan: string): string {
 
 function formatExpiry(month: number, year: number): string {
   return `${String(month).padStart(2, "0")}/${String(year).slice(-2)}`;
-}
-
-function matchProducts(query: string): Product[] {
-  const q = query.toLowerCase();
-  for (const [key, products] of Object.entries(PRODUCT_CATALOG)) {
-    if (q.includes(key)) return products;
-  }
-  // Fuzzy match
-  if (q.includes("earbud") || q.includes("airpod") || q.includes("bud"))
-    return PRODUCT_CATALOG.earbuds;
-  if (q.includes("laptop") || q.includes("macbook") || q.includes("computer") || q.includes("coding"))
-    return PRODUCT_CATALOG.laptop;
-  if (
-    q.includes("headphone") ||
-    q.includes("noise") ||
-    q.includes("over-ear") ||
-    q.includes("over ear")
-  )
-    return PRODUCT_CATALOG.headphones;
-  if (q.includes("keyboard") || q.includes("mechanical") || q.includes("typing"))
-    return PRODUCT_CATALOG.keyboard;
-  if (
-    q.includes("coffee") ||
-    q.includes("espresso") ||
-    q.includes("grinder") ||
-    q.includes("brew")
-  )
-    return PRODUCT_CATALOG.coffee;
-  return PRODUCT_CATALOG.earbuds; // default fallback
 }
 
 function getStatusColor(status: string): string {
@@ -333,6 +259,12 @@ export default function Home() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
+  // ── Agent View ──
+  const [showAgentView, setShowAgentView] = useState(false);
+  const [agentViewData, setAgentViewData] = useState<AgentViewData | null>(null);
+  const [activeCheckoutId, setActiveCheckoutId] = useState<string | null>(null);
+  const agentPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // ── Scroll to bottom ──
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -428,6 +360,82 @@ export default function Home() {
     }
   }, [showCvv]);
 
+  // ── Poll checkout for agent view ──
+  useEffect(() => {
+    if (!showAgentView || !activeCheckoutId || !session?.accessToken) {
+      if (agentPollRef.current) {
+        clearInterval(agentPollRef.current);
+        agentPollRef.current = null;
+      }
+      return;
+    }
+
+    const terminalStatuses = new Set([
+      "completed",
+      "failed",
+      "cancelled",
+      "timeout",
+      "card_declined",
+      "merchant_blocked",
+    ]);
+
+    async function pollAgent() {
+      try {
+        const [sessionRes, stepsRes] = await Promise.all([
+          fetch(`${BASE_PATH}/api/checkout/${activeCheckoutId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accessToken: session!.accessToken }),
+          }),
+          fetch(`${BASE_PATH}/api/checkout/${activeCheckoutId}/steps`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accessToken: session!.accessToken }),
+          }),
+        ]);
+
+        const sessionData = await sessionRes.json();
+        const stepsData = await stepsRes.json();
+
+        if (!sessionData.error) {
+          const latestScreenshot =
+            stepsData.steps
+              ?.slice()
+              .reverse()
+              .find((s: AgentStep) => s.screenshotUrl)?.screenshotUrl ||
+            sessionData.confirmationScreenshot;
+
+          setAgentViewData({
+            status: sessionData.status,
+            progressPct: sessionData.progressPct ?? 0,
+            screenshotUrl: latestScreenshot,
+            productName: sessionData.productName,
+            steps: stepsData.steps || [],
+          });
+
+          if (terminalStatuses.has(sessionData.status)) {
+            if (agentPollRef.current) {
+              clearInterval(agentPollRef.current);
+              agentPollRef.current = null;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Agent view poll error:", e);
+      }
+    }
+
+    pollAgent();
+    agentPollRef.current = setInterval(pollAgent, 2000);
+
+    return () => {
+      if (agentPollRef.current) {
+        clearInterval(agentPollRef.current);
+        agentPollRef.current = null;
+      }
+    };
+  }, [showAgentView, activeCheckoutId, session?.accessToken]);
+
   // ── Handlers ──
 
   async function fetchBalance() {
@@ -455,8 +463,45 @@ export default function Home() {
     );
   }
 
+  function getAgentStatusLabel(status: string): string {
+    const labels: Record<string, string> = {
+      queued: "Queued...",
+      initializing: "Initializing browser...",
+      navigating: "Navigating to store...",
+      product_confirmed: "Product confirmed",
+      adding_to_cart: "Adding to cart...",
+      entering_shipping: "Entering shipping info...",
+      entering_payment: "Entering payment details...",
+      reviewing_order: "Reviewing order...",
+      submitting: "Submitting order...",
+      awaiting_3ds: "Waiting for 3DS verification...",
+      order_placed: "Order placed!",
+      extracting_confirmation: "Extracting confirmation...",
+      completed: "Checkout complete!",
+      failed: "Checkout failed",
+      cancelled: "Checkout cancelled",
+      timeout: "Checkout timed out",
+      card_declined: "Card declined",
+      merchant_blocked: "Merchant blocked",
+    };
+    return labels[status] || status;
+  }
+
+  function getAgentStepState(status: string): "complete" | "active" | "pending" | "error" {
+    if (status === "completed" || status === "success") return "complete";
+    if (status === "active" || status === "in_progress" || status === "running") return "active";
+    if (status === "failed" || status === "error") return "error";
+    return "pending";
+  }
+
   async function startOAuth(onComplete: () => void) {
     pendingActionRef.current = onComplete;
+
+    // Open popup immediately (in user-click context) to avoid browser popup blockers.
+    // We'll redirect it to the OAuth URL once we have it.
+    const popup = window.open("about:blank", "tallion_auth", "width=500,height=700");
+    popupRef.current = popup;
+
     try {
       const res = await fetch(`${BASE_PATH}/api/auth`, {
         method: "POST",
@@ -464,16 +509,12 @@ export default function Home() {
         body: JSON.stringify({}),
       });
       const data = await res.json();
-      if (data.url) {
+      if (data.url && popup) {
         localStorage.setItem("tallion_state", data.state);
         localStorage.setItem("tallion_code_verifier", data.codeVerifier);
-        popupRef.current = window.open(
-          data.url,
-          "tallion_auth",
-          "width=500,height=700",
-        );
+        popup.location.href = data.url;
         const checker = setInterval(() => {
-          if (popupRef.current?.closed) {
+          if (popup.closed) {
             clearInterval(checker);
             if (!localStorage.getItem("tallion_session")) {
               pendingActionRef.current = null;
@@ -485,8 +526,11 @@ export default function Home() {
             }
           }
         }, 500);
+      } else if (popup) {
+        popup.close();
       }
     } catch {
+      if (popup) popup.close();
       addMessage({
         role: "assistant",
         content: "Sorry, I couldn\u2019t connect to the payment service. Please try again.",
@@ -505,11 +549,13 @@ export default function Home() {
     // Simulate AI "thinking" delay
     await new Promise((r) => setTimeout(r, 800 + Math.random() * 700));
 
-    const products = matchProducts(userText);
+    const products = await searchProducts(userText);
     const typingId = addMessage({
       role: "assistant",
-      content: `I found ${products.length} great options for you. Here\u2019s what I\u2019d recommend:`,
-      widget: { type: "products", products },
+      content: products.length > 0
+        ? `I found ${products.length} great options for you. Here\u2019s what I\u2019d recommend:`
+        : "I couldn\u2019t find any products matching your search. Try a different query!",
+      widget: products.length > 0 ? { type: "products", products } : undefined,
     });
 
     setIsThinking(false);
@@ -535,13 +581,26 @@ export default function Home() {
       // Simulate thinking
       await new Promise((r) => setTimeout(r, 600));
 
+      // Read session from localStorage (not captured state) to avoid stale closure after OAuth
+      const stored = localStorage.getItem("tallion_session");
+      const currentSession = stored ? JSON.parse(stored) : session;
+
+      if (!currentSession?.accessToken) {
+        updateMessage(thinkingId, {
+          content: "Sorry, I couldn\u2019t find your session. Please try again.",
+          typing: false,
+        });
+        setIsThinking(false);
+        return;
+      }
+
       // Create intent
       try {
         const res = await fetch(`${BASE_PATH}/api/intent`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            accessToken: session!.accessToken,
+            accessToken: currentSession.accessToken,
             item: {
               name: product.name,
               price: product.price,
@@ -613,12 +672,23 @@ export default function Home() {
     <div
       style={{
         display: "flex",
-        flexDirection: "column",
         height: "100vh",
-        maxWidth: 860,
-        margin: "0 auto",
+        width: "100%",
       }}
     >
+      {/* ── Left Panel: Chat ── */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          flex: showAgentView ? "1 1 50%" : "1 1 100%",
+          maxWidth: showAgentView ? "none" : 860,
+          margin: showAgentView ? 0 : "0 auto",
+          transition: "all 0.3s ease",
+          minWidth: 0,
+        }}
+      >
       {/* ── Header ── */}
       <div
         style={{
@@ -657,6 +727,35 @@ export default function Home() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            onClick={() => setShowAgentView(!showAgentView)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "4px 10px",
+              borderRadius: 8,
+              border: showAgentView ? "1px solid #E2C97E44" : "1px solid #333",
+              background: showAgentView ? "#E2C97E11" : "transparent",
+              color: showAgentView ? "#E2C97E" : "#888",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+            }}
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: (activeCheckoutId || activeIntent) ? "#ef4444" : "#555",
+                boxShadow: (activeCheckoutId || activeIntent) ? "0 0 6px #ef444488" : "none",
+                animation: (activeCheckoutId || activeIntent) ? "pulse 2s infinite" : "none",
+              }}
+            />
+            Watch Agent
+          </button>
           {balance && (
             <span style={{ fontSize: 12, color: "#888" }}>
               Balance: {formatCents(balance.remaining)}
@@ -1321,6 +1420,485 @@ export default function Home() {
           network level
         </p>
       </div>
+      </div>
+
+      {/* ── Right Panel: Agent View ── */}
+      {showAgentView && (
+        <div
+          style={{
+            flex: "1 1 50%",
+            borderLeft: "1px solid #1a1a1a",
+            display: "flex",
+            flexDirection: "column",
+            height: "100vh",
+            background: "#0a0a0a",
+            minWidth: 0,
+          }}
+        >
+          {/* Agent View Header */}
+          <div
+            style={{
+              padding: "16px 20px",
+              borderBottom: "1px solid #1a1a1a",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              flexShrink: 0,
+            }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: (activeCheckoutId || activeIntent) ? "#ef4444" : "#555",
+                boxShadow: (activeCheckoutId || activeIntent) ? "0 0 8px #ef444488" : "none",
+                animation: (activeCheckoutId || activeIntent) ? "pulse 2s infinite" : "none",
+              }}
+            />
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#f5f5f5" }}>
+              Live Agent View
+            </h2>
+            {(agentViewData?.productName || activeIntent?.productName) && (
+              <span style={{ fontSize: 11, color: "#888", marginLeft: "auto" }}>
+                {agentViewData?.productName || activeIntent?.productName}
+              </span>
+            )}
+          </div>
+
+          {/* Agent View Body */}
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              padding: 20,
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+            }}
+          >
+            {!activeCheckoutId && !activeIntent ? (
+              /* No active checkout or intent */
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 12,
+                  color: "#555",
+                }}
+              >
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 12,
+                    background: "#161616",
+                    border: "1px solid #222",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 20,
+                  }}
+                >
+                  {"\uD83D\uDD0D"}
+                </div>
+                <p style={{ margin: 0, fontSize: 13, textAlign: "center" }}>
+                  No active checkout session.
+                </p>
+                <p style={{ margin: 0, fontSize: 11, color: "#444", textAlign: "center" }}>
+                  Start a purchase to watch the agent in real-time.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Screenshot Area */}
+                <div
+                  style={{
+                    borderRadius: 10,
+                    border: "1px solid #222",
+                    background: "#111",
+                    overflow: "hidden",
+                    aspectRatio: "16/10",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    position: "relative",
+                  }}
+                >
+                  {agentViewData?.screenshotUrl ? (
+                    <img
+                      src={agentViewData.screenshotUrl}
+                      alt="Agent screenshot"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "contain",
+                        background: "#000",
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 8,
+                        color: "#444",
+                      }}
+                    >
+                      {activeCheckoutId ? (
+                        <div
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: "50%",
+                            border: "2px solid #333",
+                            borderTopColor: "#E2C97E",
+                            animation: "spin 1s linear infinite",
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 10,
+                            background: "#1a1a2e",
+                            border: "1px solid #222",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 18,
+                          }}
+                        >
+                          {"\uD83D\uDCB3"}
+                        </div>
+                      )}
+                      <span style={{ fontSize: 11 }}>
+                        {activeCheckoutId
+                          ? "Waiting for screenshot..."
+                          : "Agent screenshots will appear here during checkout"}
+                      </span>
+                    </div>
+                  )}
+                  {/* Live badge */}
+                  {activeCheckoutId && agentViewData && !["completed", "failed", "cancelled", "timeout", "card_declined", "merchant_blocked"].includes(agentViewData.status) && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 10,
+                        right: 10,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        padding: "3px 8px",
+                        borderRadius: 6,
+                        background: "rgba(0,0,0,0.7)",
+                        backdropFilter: "blur(4px)",
+                        border: "1px solid #ef444444",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 5,
+                          height: 5,
+                          borderRadius: "50%",
+                          background: "#ef4444",
+                          animation: "pulse 2s infinite",
+                        }}
+                      />
+                      <span style={{ fontSize: 9, fontWeight: 600, color: "#ef4444", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Live
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Status + Progress */}
+                <div
+                  style={{
+                    padding: "12px 16px",
+                    borderRadius: 10,
+                    background: "#111",
+                    border: "1px solid #222",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "#e0e0e0" }}>
+                      {activeCheckoutId && agentViewData
+                        ? getAgentStatusLabel(agentViewData.status)
+                        : activeIntent
+                          ? `Intent: ${getStatusLabel(activeIntent.status)}`
+                          : "Initializing..."}
+                    </span>
+                    <span style={{ fontSize: 11, color: "#888", fontFamily: "monospace" }}>
+                      {activeCheckoutId
+                        ? `${agentViewData?.progressPct ?? 0}%`
+                        : activeIntent
+                          ? getStatusLabel(activeIntent.status)
+                          : "0%"}
+                    </span>
+                  </div>
+                  {/* Progress bar */}
+                  <div
+                    style={{
+                      width: "100%",
+                      height: 4,
+                      borderRadius: 2,
+                      background: "#222",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {(() => {
+                      const pct = activeCheckoutId
+                        ? (agentViewData?.progressPct ?? 0)
+                        : activeIntent
+                          ? (["settled", "completed"].includes(activeIntent.status) ? 100
+                            : ["authorized"].includes(activeIntent.status) ? 75
+                            : ["card_issued"].includes(activeIntent.status) ? 40
+                            : 15)
+                          : 0;
+                      const terminalOk = activeCheckoutId
+                        ? agentViewData?.status === "completed"
+                        : activeIntent && ["settled", "completed"].includes(activeIntent.status);
+                      const terminalFail = activeCheckoutId
+                        ? (agentViewData?.status === "failed" || agentViewData?.status === "card_declined")
+                        : activeIntent && ["cancelled", "expired", "authorization_failed", "declined"].includes(activeIntent.status);
+                      return (
+                        <div
+                          style={{
+                            width: `${pct}%`,
+                            height: "100%",
+                            borderRadius: 2,
+                            background: terminalOk
+                              ? "#22c55e"
+                              : terminalFail
+                                ? "#ef4444"
+                                : "linear-gradient(90deg, #E2C97E, #c4a85a)",
+                            transition: "width 0.5s ease",
+                          }}
+                        />
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Step Timeline */}
+                <div
+                  style={{
+                    padding: "14px 16px",
+                    borderRadius: 10,
+                    background: "#111",
+                    border: "1px solid #222",
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: "0 0 12px",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: "#555",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                    }}
+                  >
+                    Checkout Steps
+                  </p>
+                  {activeCheckoutId && agentViewData && agentViewData.steps.length > 0 ? (
+                    agentViewData.steps.map((step, i, arr) => {
+                      const state = getAgentStepState(step.status);
+                      return (
+                        <div key={step.id} style={{ display: "flex", gap: 10 }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              width: 14,
+                              flexShrink: 0,
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: state === "active" ? 10 : 8,
+                                height: state === "active" ? 10 : 8,
+                                borderRadius: "50%",
+                                background:
+                                  state === "complete"
+                                    ? "#22c55e"
+                                    : state === "active"
+                                      ? "#E2C97E"
+                                      : state === "error"
+                                        ? "#ef4444"
+                                        : "#333",
+                                marginTop: 4,
+                                boxShadow:
+                                  state === "active" ? "0 0 6px #E2C97E44" : "none",
+                              }}
+                            />
+                            {i < arr.length - 1 && (
+                              <div
+                                style={{
+                                  width: 1.5,
+                                  flex: 1,
+                                  minHeight: 14,
+                                  background:
+                                    state === "complete" ? "#22c55e33" : "#222",
+                                }}
+                              />
+                            )}
+                          </div>
+                          <div style={{ paddingBottom: 10, minWidth: 0 }}>
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 12,
+                                fontWeight: 500,
+                                color:
+                                  state === "complete"
+                                    ? "#ccc"
+                                    : state === "active"
+                                      ? "#E2C97E"
+                                      : state === "error"
+                                        ? "#ef4444"
+                                        : "#444",
+                              }}
+                            >
+                              {state === "complete" && "\u2713 "}
+                              {state === "active" && "\u25C9 "}
+                              {state === "error" && "\u2717 "}
+                              {step.stepName}
+                            </p>
+                            {step.durationMs && (
+                              <p
+                                style={{
+                                  margin: "1px 0 0",
+                                  fontSize: 10,
+                                  color: "#555",
+                                }}
+                              >
+                                {(step.durationMs / 1000).toFixed(1)}s
+                              </p>
+                            )}
+                            {step.errorMessage && (
+                              <p
+                                style={{
+                                  margin: "1px 0 0",
+                                  fontSize: 10,
+                                  color: "#ef4444",
+                                }}
+                              >
+                                {step.errorMessage}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    /* Use intent timeline when no checkout steps */
+                    <>
+                      {(activeIntent ? getTimelineSteps(activeIntent) : [
+                        { label: "Intent Created", state: "complete" as StepState },
+                        { label: "Card Issued", state: "pending" as StepState },
+                        { label: "Navigating to Store", state: "pending" as StepState },
+                        { label: "Adding to Cart", state: "pending" as StepState },
+                        { label: "Entering Payment", state: "pending" as StepState },
+                        { label: "Order Confirmed", state: "pending" as StepState },
+                      ]).map((step, i, arr) => (
+                        <div key={i} style={{ display: "flex", gap: 10 }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              width: 14,
+                              flexShrink: 0,
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: step.state === "active" ? 10 : 8,
+                                height: step.state === "active" ? 10 : 8,
+                                borderRadius: "50%",
+                                background: step.state === "complete"
+                                  ? "#22c55e"
+                                  : step.state === "active"
+                                    ? "#E2C97E"
+                                    : step.state === "error"
+                                      ? "#ef4444"
+                                      : "#333",
+                                marginTop: 4,
+                                boxShadow: step.state === "active" ? "0 0 6px #E2C97E44" : "none",
+                              }}
+                            />
+                            {i < arr.length - 1 && (
+                              <div
+                                style={{
+                                  width: 1.5,
+                                  flex: 1,
+                                  minHeight: 14,
+                                  background: step.state === "complete" ? "#22c55e33" : "#222",
+                                }}
+                              />
+                            )}
+                          </div>
+                          <div style={{ paddingBottom: 10 }}>
+                            <p
+                              style={{
+                                margin: 0,
+                                fontSize: 12,
+                                fontWeight: 500,
+                                color: step.state === "complete"
+                                  ? "#ccc"
+                                  : step.state === "active"
+                                    ? "#E2C97E"
+                                    : step.state === "error"
+                                      ? "#ef4444"
+                                      : "#444",
+                              }}
+                            >
+                              {step.state === "complete" ? "\u2713 " : step.state === "active" ? "\u25C9 " : step.state === "error" ? "\u2717 " : "\u25CB "}
+                              {step.label}
+                            </p>
+                            {"detail" in step && step.detail && (
+                              <p style={{ margin: "1px 0 0", fontSize: 10, color: "#555" }}>
+                                {step.detail}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Keyframe animations */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

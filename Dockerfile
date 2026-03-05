@@ -29,6 +29,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3003
 
+# Server-side env vars needed at runtime by API routes
+ARG TALLION_API_KEY
+ARG TALLION_BASE_URL
+ENV TALLION_API_KEY=$TALLION_API_KEY
+ENV TALLION_BASE_URL=$TALLION_BASE_URL
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
