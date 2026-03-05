@@ -605,6 +605,14 @@ export default function Home() {
       content: `Buy the ${product.name} from ${product.store} for ${formatCents(product.price)}`,
     });
 
+    if (!product.url) {
+      addMessage({
+        role: "assistant",
+        content: `Sorry, I don\u2019t have a direct link for this product. Try searching for **"${product.name}"** on ${product.store}\u2019s website to find the product page.`,
+      });
+      return;
+    }
+
     const promptShipping = () => {
       addMessage({
         role: "assistant",
@@ -1083,7 +1091,7 @@ export default function Home() {
                             )}
                             <button
                               onClick={() => handleBuyProduct(product)}
-                              disabled={isThinking || activeIntent !== null}
+                              disabled={isThinking || activeIntent !== null || !product.url}
                               style={{
                                 padding: "6px 14px",
                                 borderRadius: 6,
@@ -1093,12 +1101,13 @@ export default function Home() {
                                 fontWeight: 600,
                                 fontSize: 12,
                                 cursor:
-                                  isThinking || activeIntent
+                                  isThinking || activeIntent || !product.url
                                     ? "default"
                                     : "pointer",
                                 opacity:
-                                  isThinking || activeIntent ? 0.4 : 1,
+                                  isThinking || activeIntent || !product.url ? 0.4 : 1,
                               }}
+                              title={!product.url ? "No product link available" : undefined}
                             >
                               Buy Now
                             </button>

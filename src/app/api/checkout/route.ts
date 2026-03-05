@@ -6,9 +6,14 @@ export async function POST(request: Request) {
     const { accessToken, productUrl, productName, productPriceCents, shipping } =
       await request.json();
 
-    if (!accessToken || !productUrl || !productPriceCents || !shipping) {
+    const missing: string[] = [];
+    if (!accessToken) missing.push("accessToken");
+    if (!productUrl) missing.push("productUrl");
+    if (!productPriceCents && productPriceCents !== 0) missing.push("productPriceCents");
+    if (!shipping) missing.push("shipping");
+    if (missing.length > 0) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: `Missing required fields: ${missing.join(", ")}` },
         { status: 400 },
       );
     }
