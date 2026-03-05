@@ -80,6 +80,16 @@ interface CheckoutData {
   errorMessage?: string;
 }
 
+interface ShippingForm {
+  name: string;
+  line1: string;
+  line2: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+}
+
 interface AgentStep {
   id: string;
   stepNumber: number;
@@ -99,6 +109,16 @@ interface AgentViewData {
   productName?: string;
   steps: AgentStep[];
 }
+
+const modalInputStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: 8,
+  border: "1px solid #333",
+  background: "#111",
+  color: "#eee",
+  fontSize: 14,
+  outline: "none",
+};
 
 // ── Product Search ──
 
@@ -268,6 +288,18 @@ export default function Home() {
   const [agentViewData, setAgentViewData] = useState<AgentViewData | null>(null);
   const [activeCheckoutId, setActiveCheckoutId] = useState<string | null>(null);
   const agentPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Shipping Modal ──
+  const [showShippingModal, setShowShippingModal] = useState(false);
+  const [shippingForm, setShippingForm] = useState<ShippingForm>({
+    name: "",
+    line1: "",
+    line2: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    country: "US",
+  });
 
   // ── Scroll to bottom ──
   useEffect(() => {
@@ -573,85 +605,12 @@ export default function Home() {
       content: `Buy the ${product.name} from ${product.store} for ${formatCents(product.price)}`,
     });
 
-    const doPurchase = async () => {
-      setIsThinking(true);
-
-      const thinkingId = addMessage({
+    const promptShipping = () => {
+      addMessage({
         role: "assistant",
-        content: `Processing your purchase of **${product.name}** from ${product.store}...`,
-        typing: true,
+        content: `Great choice! To complete your purchase of **${product.name}**, I need your shipping address. Please fill in the form below.`,
       });
-
-      // Simulate thinking
-      await new Promise((r) => setTimeout(r, 600));
-
-      // Read session from localStorage (not captured state) to avoid stale closure after OAuth
-      const stored = localStorage.getItem("tallion_session");
-      const currentSession = stored ? JSON.parse(stored) : session;
-
-      if (!currentSession?.accessToken) {
-        updateMessage(thinkingId, {
-          content: "Sorry, I couldn\u2019t find your session. Please try again.",
-          typing: false,
-        });
-        setIsThinking(false);
-        return;
-      }
-
-      // Create intent
-      try {
-        const res = await fetch(`${BASE_PATH}/api/intent`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            accessToken: currentSession.accessToken,
-            item: {
-              name: product.name,
-              price: product.price,
-              restaurant: product.store,
-            },
-          }),
-        });
-        const data = await res.json();
-
-        if (data.error) {
-          updateMessage(thinkingId, {
-            content: `Sorry, the purchase couldn\u2019t be processed: ${data.error}`,
-            typing: false,
-          });
-          setIsThinking(false);
-          return;
-        }
-
-        const intent: IntentData = {
-          intentId: data.intentId,
-          status: data.status,
-          amount: data.amount,
-          currency: data.currency,
-          merchantName: data.merchantName || product.store,
-          productName: product.name,
-          card: data.card,
-          asaVerified: false,
-          expiresAt: data.expiresAt,
-        };
-
-        setActiveIntent(intent);
-
-        updateMessage(thinkingId, {
-          content: `I\u2019ve created a purchase intent and issued a **single-use virtual Visa card** for ${formatCents(intent.amount)}. The card is scoped exclusively to this purchase at ${intent.merchantName}.\n\nHere\u2019s the live status of your transaction:`,
-          widget: { type: "intent", intent },
-          typing: false,
-        });
-
-        fetchBalance();
-      } catch {
-        updateMessage(thinkingId, {
-          content:
-            "Sorry, something went wrong creating the purchase. Please try again.",
-          typing: false,
-        });
-      }
-      setIsThinking(false);
+      setShowShippingModal(true);
     };
 
     if (!session?.connected) {
@@ -660,10 +619,91 @@ export default function Home() {
         content:
           "Before I can make this purchase, I need you to authorize me via Tallion. Opening the authorization window...",
       });
-      startOAuth(doPurchase);
+      startOAuth(promptShipping);
     } else {
-      doPurchase();
+      promptShipping();
     }
+  }
+
+  async function handleShippingSubmit() {
+    if (!selectedProduct || !shippingForm.name || !shippingForm.line1 || !shippingForm.city || !shippingForm.state || !shippingForm.zipCode) return;
+
+    setShowShippingModal(false);
+    setIsThinking(true);
+
+    const product = selectedProduct;
+
+    addMessage({
+      role: "user",
+      content: `Ship to: ${shippingForm.name}, ${shippingForm.line1}${shippingForm.line2 ? `, ${shippingForm.line2}` : ""}, ${shippingForm.city}, ${shippingForm.state} ${shippingForm.zipCode}`,
+    });
+
+    const thinkingId = addMessage({
+      role: "assistant",
+      content: `Starting managed checkout for **${product.name}** from ${product.store}. I'll navigate to the store, add the item to cart, and complete the purchase using a single-use virtual card...`,
+      typing: true,
+    });
+
+    await new Promise((r) => setTimeout(r, 600));
+
+    const stored = localStorage.getItem("tallion_session");
+    const currentSession = stored ? JSON.parse(stored) : session;
+
+    if (!currentSession?.accessToken) {
+      updateMessage(thinkingId, {
+        content: "Sorry, I couldn\u2019t find your session. Please try again.",
+        typing: false,
+      });
+      setIsThinking(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${BASE_PATH}/api/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accessToken: currentSession.accessToken,
+          productUrl: product.url,
+          productName: product.name,
+          productPriceCents: product.price,
+          shipping: shippingForm,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        updateMessage(thinkingId, {
+          content: `Sorry, the checkout couldn\u2019t be started: ${data.error}`,
+          typing: false,
+        });
+        setIsThinking(false);
+        return;
+      }
+
+      // Activate the Agent View
+      setActiveCheckoutId(data.id);
+      setShowAgentView(true);
+      setAgentViewData({
+        status: "queued",
+        progressPct: 0,
+        productName: product.name,
+        steps: [],
+      });
+
+      updateMessage(thinkingId, {
+        content: `Checkout started! I've issued a virtual card (ending in **${data.cardLastFour || "****"}**) and the agent is now navigating to ${product.store}. Watch the live progress in the Agent View panel.`,
+        typing: false,
+      });
+
+      fetchBalance();
+    } catch {
+      updateMessage(thinkingId, {
+        content: "Sorry, something went wrong starting the checkout. Please try again.",
+        typing: false,
+      });
+    }
+    setIsThinking(false);
   }
 
   // ── Render ──
@@ -2022,6 +2062,123 @@ export default function Home() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Shipping Address Modal ── */}
+      {showShippingModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setShowShippingModal(false)}
+        >
+          <div
+            style={{
+              background: "#1a1a1a",
+              border: "1px solid #333",
+              borderRadius: 12,
+              padding: 24,
+              width: 420,
+              maxWidth: "90vw",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: "0 0 16px", color: "#E2C97E", fontSize: 16 }}>
+              Shipping Address
+            </h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <input
+                placeholder="Full name"
+                value={shippingForm.name}
+                onChange={(e) => setShippingForm((f) => ({ ...f, name: e.target.value }))}
+                style={modalInputStyle}
+              />
+              <input
+                placeholder="Address line 1"
+                value={shippingForm.line1}
+                onChange={(e) => setShippingForm((f) => ({ ...f, line1: e.target.value }))}
+                style={modalInputStyle}
+              />
+              <input
+                placeholder="Address line 2 (optional)"
+                value={shippingForm.line2}
+                onChange={(e) => setShippingForm((f) => ({ ...f, line2: e.target.value }))}
+                style={modalInputStyle}
+              />
+              <div style={{ display: "flex", gap: 10 }}>
+                <input
+                  placeholder="City"
+                  value={shippingForm.city}
+                  onChange={(e) => setShippingForm((f) => ({ ...f, city: e.target.value }))}
+                  style={{ ...modalInputStyle, flex: 1 }}
+                />
+                <input
+                  placeholder="State"
+                  value={shippingForm.state}
+                  onChange={(e) => setShippingForm((f) => ({ ...f, state: e.target.value }))}
+                  style={{ ...modalInputStyle, width: 80 }}
+                />
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <input
+                  placeholder="ZIP code"
+                  value={shippingForm.zipCode}
+                  onChange={(e) => setShippingForm((f) => ({ ...f, zipCode: e.target.value }))}
+                  style={{ ...modalInputStyle, flex: 1 }}
+                />
+                <input
+                  placeholder="Country"
+                  value={shippingForm.country}
+                  onChange={(e) => setShippingForm((f) => ({ ...f, country: e.target.value }))}
+                  style={{ ...modalInputStyle, width: 80 }}
+                />
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+                <button
+                  onClick={() => setShowShippingModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: "10px 16px",
+                    borderRadius: 8,
+                    border: "1px solid #333",
+                    background: "transparent",
+                    color: "#999",
+                    cursor: "pointer",
+                    fontSize: 14,
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleShippingSubmit}
+                  disabled={!shippingForm.name || !shippingForm.line1 || !shippingForm.city || !shippingForm.state || !shippingForm.zipCode}
+                  style={{
+                    flex: 1,
+                    padding: "10px 16px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: (!shippingForm.name || !shippingForm.line1 || !shippingForm.city || !shippingForm.state || !shippingForm.zipCode) ? "#333" : "#E2C97E",
+                    color: (!shippingForm.name || !shippingForm.line1 || !shippingForm.city || !shippingForm.state || !shippingForm.zipCode) ? "#666" : "#000",
+                    cursor: (!shippingForm.name || !shippingForm.line1 || !shippingForm.city || !shippingForm.state || !shippingForm.zipCode) ? "not-allowed" : "pointer",
+                    fontWeight: 600,
+                    fontSize: 14,
+                  }}
+                >
+                  Continue to Checkout
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
