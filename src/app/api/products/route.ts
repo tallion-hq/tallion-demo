@@ -21,17 +21,21 @@ export async function POST(request: Request) {
 
     // Map to the format the frontend expects
     const products = result.products.map((p: any) => ({
-      name: p.name,
+      name: p.title ?? p.name,
       price: p.priceCents,
-      store: p.store,
+      store: p.merchantName ?? p.store,
       image: p.imageUrl || "",
-      url: p.url,
+      url: p.productUrl ?? p.url,
       description: `${p.deliveryEstimate ? p.deliveryEstimate + " · " : ""}${p.rating ? `★ ${p.rating}` : ""} · Trust: ${p.trustScore}/100`,
       trustScore: p.trustScore,
       rating: p.rating,
       reviewCount: p.reviewCount,
       deliveryEstimate: p.deliveryEstimate,
       inStock: p.inStock,
+      brand: p.brand,
+      condition: p.condition,
+      source: p.source,
+      vertical: p.vertical,
     }));
 
     return NextResponse.json({ products });

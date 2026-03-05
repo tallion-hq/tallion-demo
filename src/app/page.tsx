@@ -61,6 +61,10 @@ interface Product {
   reviewCount?: number;
   deliveryEstimate?: string;
   inStock?: boolean;
+  brand?: string;
+  condition?: string;
+  source?: string;
+  vertical?: string;
 }
 
 interface CheckoutData {
@@ -918,23 +922,63 @@ export default function Home() {
                           {product.name}
                         </a>
 
-                        {/* Store badge */}
-                        <span
-                          style={{
-                            display: "inline-block",
-                            width: "fit-content",
-                            fontSize: 10,
-                            fontWeight: 600,
-                            color: "#aaa",
-                            background: "#222",
-                            borderRadius: 4,
-                            padding: "2px 6px",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.5px",
-                          }}
-                        >
-                          {product.store}
-                        </span>
+                        {/* Store + source badges */}
+                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              width: "fit-content",
+                              fontSize: 10,
+                              fontWeight: 600,
+                              color: "#aaa",
+                              background: "#222",
+                              borderRadius: 4,
+                              padding: "2px 6px",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.5px",
+                            }}
+                          >
+                            {product.store}
+                          </span>
+                          {product.source && (
+                            <span
+                              style={{
+                                display: "inline-block",
+                                fontSize: 9,
+                                fontWeight: 500,
+                                color: "#E2C97E",
+                                background: "rgba(226,201,126,0.1)",
+                                borderRadius: 4,
+                                padding: "2px 5px",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                              }}
+                            >
+                              via {product.source}
+                            </span>
+                          )}
+                          {product.brand && (
+                            <span style={{ fontSize: 10, color: "#888" }}>
+                              {product.brand}
+                            </span>
+                          )}
+                          {product.condition && product.condition !== "new" && (
+                            <span
+                              style={{
+                                display: "inline-block",
+                                fontSize: 9,
+                                fontWeight: 500,
+                                color: "#f0ad4e",
+                                background: "rgba(240,173,78,0.1)",
+                                borderRadius: 4,
+                                padding: "2px 5px",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              {product.condition}
+                            </span>
+                          )}
+                        </div>
 
                         {/* Rating + reviews */}
                         {product.rating != null && (
