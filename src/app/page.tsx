@@ -853,79 +853,173 @@ export default function Home() {
                         background: "#161616",
                         borderRadius: 10,
                         border: "1px solid #222",
-                        padding: 14,
                         display: "flex",
                         flexDirection: "column",
-                        gap: 8,
+                        overflow: "hidden",
                       }}
                     >
-                      <div>
-                        <p
+                      {/* Product image */}
+                      {product.image ? (
+                        <div
+                          style={{
+                            width: "100%",
+                            height: 160,
+                            background: "#1a1a1a",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            style={{
+                              maxWidth: "100%",
+                              maxHeight: "100%",
+                              objectFit: "contain",
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            width: "100%",
+                            height: 80,
+                            background: "#1a1a1a",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#333",
+                            fontSize: 24,
+                          }}
+                        >
+                          📦
+                        </div>
+                      )}
+
+                      <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+                        {/* Product name linked to URL */}
+                        <a
+                          href={product.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           style={{
                             margin: 0,
                             fontSize: 14,
                             fontWeight: 600,
+                            color: "#f5f5f5",
+                            textDecoration: "none",
+                            lineHeight: 1.3,
                           }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = "#E2C97E")}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = "#f5f5f5")}
                         >
                           {product.name}
-                        </p>
-                        <p
+                        </a>
+
+                        {/* Store badge */}
+                        <span
                           style={{
-                            margin: "2px 0 0",
-                            fontSize: 12,
-                            color: "#888",
-                          }}
-                        >
-                          {product.description}
-                        </p>
-                        <p
-                          style={{
-                            margin: "2px 0 0",
-                            fontSize: 11,
-                            color: "#666",
+                            display: "inline-block",
+                            width: "fit-content",
+                            fontSize: 10,
+                            fontWeight: 600,
+                            color: "#aaa",
+                            background: "#222",
+                            borderRadius: 4,
+                            padding: "2px 6px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
                           }}
                         >
                           {product.store}
-                        </p>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          marginTop: "auto",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: 16,
-                            fontWeight: 600,
-                            color: "#f5f5f5",
-                          }}
-                        >
-                          {formatCents(product.price)}
                         </span>
-                        <button
-                          onClick={() => handleBuyProduct(product)}
-                          disabled={isThinking || activeIntent !== null}
+
+                        {/* Rating + reviews */}
+                        {product.rating != null && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+                            <span style={{ color: "#E2C97E" }}>
+                              {"★".repeat(Math.round(product.rating))}
+                              {"☆".repeat(5 - Math.round(product.rating))}
+                            </span>
+                            <span style={{ color: "#888" }}>
+                              {product.rating.toFixed(1)}
+                              {product.reviewCount != null && ` (${product.reviewCount.toLocaleString()})`}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Delivery estimate */}
+                        {product.deliveryEstimate && (
+                          <p style={{ margin: 0, fontSize: 11, color: "#6b8" }}>
+                            🚚 {product.deliveryEstimate}
+                          </p>
+                        )}
+
+                        {/* Price + actions */}
+                        <div
                           style={{
-                            padding: "6px 14px",
-                            borderRadius: 6,
-                            border: "none",
-                            background: "#E2C97E",
-                            color: "#0a0a0a",
-                            fontWeight: 600,
-                            fontSize: 12,
-                            cursor:
-                              isThinking || activeIntent
-                                ? "default"
-                                : "pointer",
-                            opacity:
-                              isThinking || activeIntent ? 0.4 : 1,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginTop: "auto",
+                            paddingTop: 6,
                           }}
                         >
-                          Buy Now
-                        </button>
+                          <span
+                            style={{
+                              fontSize: 18,
+                              fontWeight: 700,
+                              color: "#f5f5f5",
+                            }}
+                          >
+                            {formatCents(product.price)}
+                          </span>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            {product.url && (
+                              <a
+                                href={product.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  padding: "6px 10px",
+                                  borderRadius: 6,
+                                  border: "1px solid #333",
+                                  background: "transparent",
+                                  color: "#aaa",
+                                  fontWeight: 500,
+                                  fontSize: 11,
+                                  textDecoration: "none",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                View
+                              </a>
+                            )}
+                            <button
+                              onClick={() => handleBuyProduct(product)}
+                              disabled={isThinking || activeIntent !== null}
+                              style={{
+                                padding: "6px 14px",
+                                borderRadius: 6,
+                                border: "none",
+                                background: "#E2C97E",
+                                color: "#0a0a0a",
+                                fontWeight: 600,
+                                fontSize: 12,
+                                cursor:
+                                  isThinking || activeIntent
+                                    ? "default"
+                                    : "pointer",
+                                opacity:
+                                  isThinking || activeIntent ? 0.4 : 1,
+                              }}
+                            >
+                              Buy Now
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
